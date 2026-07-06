@@ -1,0 +1,15 @@
+{
+  "name": "unifi-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "unifi": "src/main.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "install-skill": "bun scripts/install-skill.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
+  }
+}
