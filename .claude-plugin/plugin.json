@@ -1,0 +1,12 @@
+{
+  "name": "unifi-cli",
+  "version": "0.1.0",
+  "description": "Answer questions about your UniFi network (gateway, APs, connected clients) by driving the unifi CLI against the local gateway's Integrations API.",
+  "author": {
+    "name": "Bailey Wickham"
+  },
+  "homepage": "https://github.com/baileywickham/unifi-cli",
+  "repository": "https://github.com/baileywickham/unifi-cli",
+  "license": "MIT",
+  "keywords": ["unifi", "ubiquiti", "networking", "cli", "homelab"]
+}

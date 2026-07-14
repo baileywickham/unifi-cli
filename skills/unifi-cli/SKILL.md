@@ -5,13 +5,22 @@ description: Use when asked about UniFi network gear or the local network — ac
 
 # unifi-cli
 
-CLI for the UniFi Network Integrations API on the local Cloud Gateway Ultra.
+CLI for the UniFi Network Integrations API on a local UniFi gateway
+(Cloud Gateway Ultra, UDM, UDR, etc.).
 
 ## Prerequisites
 
-- `unifi` is on PATH (installed via `bun link` from ~/workspace/unifi-cli).
+- `unifi` is on PATH. `bun link` installs it to `~/.bun/bin`, which may not be
+  on PATH in every shell — try `~/.bun/bin/unifi` before assuming it's missing.
+  If it isn't installed, install it (requires [Bun](https://bun.sh)):
+
+      git clone https://github.com/baileywickham/unifi-cli
+      cd unifi-cli && bun install && bun link
+
 - API key in `UNIFI_API_KEY` or `~/.config/unifi-cli/config.json`. If missing,
   the CLI prints setup instructions — relay them to the user instead of guessing.
+  (Keys must be created in the gateway's local web UI, not unifi.ui.com — the
+  CLI's error output and the repo README explain this.)
 
 ## Commands
 

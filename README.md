@@ -77,11 +77,20 @@ See [docs/api-notes.md](docs/api-notes.md) for field notes on the API itself (au
 
 ## Claude Code skill
 
-```sh
-bun run install-skill   # copies skill/ → ~/.claude/skills/unifi-cli
+The easiest way is the plugin marketplace:
+
+```
+/plugin marketplace add baileywickham/claude-plugins
+/plugin install unifi-cli@baileywickham
 ```
 
-After that, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
+Or, from a clone of this repo:
+
+```sh
+bun run install-skill   # copies skills/unifi-cli/ → ~/.claude/skills/unifi-cli
+```
+
+Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
 
 ## Development
 
