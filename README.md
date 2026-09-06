@@ -16,6 +16,8 @@ U7 Lite              U7 Lite    192.168.1.252  ONLINE  8.6.11
 - `unifi devices` — all UniFi hardware (gateway, switches, APs) with model/IP/state/firmware
 - `unifi device <name|id>` — device detail plus live stats (uptime, CPU, memory)
 - `unifi clients [--wired|--wireless]` — every client on the network
+- `unifi client <name|ip|mac>` — one client plus its DHCP reservation
+- `unifi client fixed-ip <client> <ip|off> [--name label]` — set or clear a DHCP reservation (asks for confirmation; uses the legacy Network API, see docs/api-notes.md)
 - `unifi device restart <name|id>` — restart a device (asks for confirmation)
 - `unifi device power-cycle <name|id> <port>` — power-cycle a PoE port (asks for confirmation)
 - `--json` on any read command for the raw API response, `--site` to pick a site, `--yes` to skip confirmations in scripts
@@ -67,6 +69,8 @@ unifi devices                        # which APs/switches do I have, are they up
 unifi device living-room             # one device: detail + uptime/cpu/memory
 unifi clients --wireless             # who's on WiFi right now
 unifi clients --json                 # full client objects (incl. uplink AP id)
+unifi client 192.168.0.134           # who is that, and does it have a fixed IP?
+unifi client fixed-ip 192.168.0.134 192.168.0.50 --name macnode   # DHCP reservation
 unifi device restart living-room     # prompts y/N before acting
 unifi --help
 ```
@@ -90,7 +94,7 @@ Or, from a clone of this repo:
 bun run install-skill   # copies skills/unifi-cli/ → ~/.claude/skills/unifi-cli
 ```
 
-Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
+Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
 
 ## Development
 

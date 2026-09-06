@@ -47,3 +47,22 @@ export interface Client {
 export interface AppInfo {
   applicationVersion: string;
 }
+
+/** Legacy (non-Integrations) Network API: /proxy/network/api/s/<site>/rest/user */
+export interface LegacyUser {
+  _id: string;
+  mac: string;
+  name?: string;
+  hostname?: string;
+  use_fixedip?: boolean;
+  fixed_ip?: string;
+  network_id?: string;
+}
+
+/** Legacy Network API: /proxy/network/api/s/<site>/rest/networkconf */
+export interface LegacyNetwork {
+  _id: string;
+  name: string;
+  purpose: string; // "corporate" | "wan" | ...
+  ip_subnet?: string; // e.g. "192.168.0.1/24"
+}

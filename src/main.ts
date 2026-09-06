@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { createInterface } from "node:readline/promises";
 import { loadConfig } from "./config";
 import { ApiClient } from "./api";
+import type { Site } from "./types";
 import { infoCommand } from "./commands/info";
 import { sitesCommand } from "./commands/sites";
 import {
@@ -12,7 +13,7 @@ import {
   powerCycleCommand,
   type Confirm,
 } from "./commands/devices";
-import { clientsCommand } from "./commands/clients";
+import { clientsCommand, clientDetailCommand, fixedIpCommand } from "./commands/clients";
 
 export const USAGE = `usage: unifi <command> [options]
 
@@ -24,20 +25,27 @@ commands:
   device restart <name|id>              restart a device
   device power-cycle <name|id> <port>   power-cycle a PoE port
   clients [--wired|--wireless]          list connected clients
+  client <name|ip|mac>                  one client + its DHCP reservation
+  client fixed-ip <client> <ip|off>     set/clear a DHCP reservation (--name N to label it)
 
 options:
   --json          raw JSON output
   --site <name>   site to use (default: config defaultSite or first site)
   --yes           skip confirmation on write actions
+  --name <label>  with fixed-ip: name the client in the controller
   -h, --help      show this help`;
 
-async function resolveSiteId(client: ApiClient, requested: string | undefined): Promise<string> {
+async function resolveSite(client: ApiClient, requested: string | undefined): Promise<Site> {
   const sites = await client.listSites();
   if (sites.length === 0) throw new Error("gateway returned no sites");
-  if (!requested) return sites[0].id;
+  if (!requested) return sites[0];
   const match = sites.find((s) => s.id === requested || s.name?.toLowerCase() === requested.toLowerCase());
   if (!match) throw new Error(`no site matching "${requested}" (available: ${sites.map((s) => s.name).join(", ")})`);
-  return match.id;
+  return match;
+}
+
+async function resolveSiteId(client: ApiClient, requested: string | undefined): Promise<string> {
+  return (await resolveSite(client, requested)).id;
 }
 
 export async function run(
@@ -52,6 +60,7 @@ export async function run(
       json: { type: "boolean", default: false },
       site: { type: "string" },
       yes: { type: "boolean", default: false },
+      name: { type: "string" },
       wired: { type: "boolean", default: false },
       wireless: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -74,6 +83,17 @@ export async function run(
         wireless: values.wireless,
         json: values.json,
       });
+    case "client": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      const siteRef = site.internalReference ?? "default";
+      const [sub, ...more] = rest;
+      if (sub === "fixed-ip") {
+        if (!more[0] || !more[1]) throw new Error(`usage: unifi client fixed-ip <name|ip|mac> <ip|off> [--name label]`);
+        return fixedIpCommand(client, site.id, siteRef, more[0], more[1], { yes: values.yes, confirm, name: values.name });
+      }
+      if (!sub) throw new Error(`usage: unifi client <name|ip|mac>`);
+      return clientDetailCommand(client, site.id, siteRef, sub, values.json);
+    }
     case "device": {
       const siteId = await resolveSiteId(client, values.site ?? defaultSite);
       const [sub, ...more] = rest;

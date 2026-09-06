@@ -1,4 +1,4 @@
-import type { AppInfo, Client, Device, DeviceDetail, DeviceStats, Page, Site } from "./types";
+import type { AppInfo, Client, Device, DeviceDetail, DeviceStats, LegacyNetwork, LegacyUser, Page, Site } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -20,8 +20,8 @@ export class ApiClient {
     private fetchFn: FetchLike = fetch,
   ) {}
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const url = `${this.gateway}/proxy/network/integration${path}`;
+  private async request<T>(method: string, path: string, body?: unknown, base = "/proxy/network/integration"): Promise<T> {
+    const url = `${this.gateway}${base}${path}`;
     let res: Response;
     try {
       res = await this.fetchFn(url, {
@@ -51,6 +51,23 @@ export class ApiClient {
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
+  }
+
+  /**
+   * The legacy Network API (what the web UI itself uses) accepts the same
+   * X-API-KEY and covers things the Integrations API still lacks, such as
+   * DHCP reservations. Responses are `{ meta: { rc }, data: [...] }`.
+   * `siteRef` is the site's `internalReference` ("default"), not its UUID.
+   */
+  private async legacy<T>(method: string, siteRef: string, path: string, body?: unknown): Promise<T[]> {
+    const res = await this.request<{ meta?: { rc?: string; msg?: string }; data?: T[] }>(
+      method,
+      `/s/${siteRef}${path}`,
+      body,
+      "/proxy/network/api",
+    );
+    if (res.meta?.rc && res.meta.rc !== "ok") throw new ApiError(0, res.meta.msg ?? `legacy API rc=${res.meta.rc}`);
+    return res.data ?? [];
   }
 
   private async allPages<T>(path: string): Promise<T[]> {
@@ -89,5 +106,16 @@ export class ApiClient {
     return this.request("POST", `/v1/sites/${siteId}/devices/${deviceId}/interfaces/ports/${portIdx}/actions`, {
       action: "POWER_CYCLE",
     });
+  }
+
+  /** Known clients (legacy API) — includes offline ones and DHCP reservations. */
+  listUsers(siteRef: string): Promise<LegacyUser[]> {
+    return this.legacy("GET", siteRef, "/rest/user");
+  }
+  listNetworks(siteRef: string): Promise<LegacyNetwork[]> {
+    return this.legacy("GET", siteRef, "/rest/networkconf");
+  }
+  updateUser(siteRef: string, userId: string, patch: Partial<LegacyUser>): Promise<LegacyUser[]> {
+    return this.legacy("PUT", siteRef, `/rest/user/${userId}`, patch);
   }
 }

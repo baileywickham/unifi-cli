@@ -40,3 +40,23 @@ List endpoints return:
 - The API surface varies by Network application version; unknown endpoints 404. Treat 404 as "not supported by this firmware", not as a bug.
 - Apple devices with Private Wi-Fi Address enabled appear as multiple clients over time (rotating locally-administered MACs).
 - Site-scoped endpoints want the site's UUID `id`, not `internalReference`.
+
+## Legacy Network API (also works with the API key)
+
+Observed on Network 10.6: the pre-Integrations API that the web UI uses,
+`https://<gateway>/proxy/network/api/s/<internalReference>/...`, accepts the
+same console-local `X-API-KEY`. Responses are `{ "meta": { "rc": "ok" }, "data": [ ... ] }`.
+Note the site segment is the `internalReference` (`default`), not the UUID.
+
+Used for DHCP reservations, which the Integrations API cannot set:
+
+| Endpoint | Notes |
+|---|---|
+| `GET /rest/user` | every client the controller has ever seen: `_id`, `mac`, `name`, `hostname`, `use_fixedip`, `fixed_ip`, `network_id` |
+| `GET /rest/networkconf` | networks: `_id`, `name`, `purpose` (`corporate` = LAN, `wan`), `ip_subnet` (`192.168.0.1/24`) |
+| `PUT /rest/user/{_id}` | partial update; `{ "use_fixedip": true, "fixed_ip": "…", "network_id": "…", "name": "…" }` reserves, `{ "use_fixedip": false }` clears |
+
+A reservation applies at the client's next DHCP renewal. Apple devices using a
+Private Wi-Fi Address present a locally-administered MAC (second hex digit
+2/6/A/E); the reservation is bound to that MAC, so it survives only while the
+device keeps it (macOS default is "Fixed" per network; "Rotating" breaks it).
