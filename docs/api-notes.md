@@ -60,3 +60,25 @@ A reservation applies at the client's next DHCP renewal. Apple devices using a
 Private Wi-Fi Address present a locally-administered MAC (second hex digit
 2/6/A/E); the reservation is bound to that MAC, so it survives only while the
 device keeps it (macOS default is "Fixed" per network; "Rotating" breaks it).
+
+### Wi-Fi radio settings
+
+The Integrations API exposes radios read-only (`interfaces.radios[]` on the
+device detail). `unifi radios` / `unifi radio set` use the legacy API instead:
+
+| Endpoint | Notes |
+|---|---|
+| `GET /stat/device` | full device objects; APs carry `radio_table[]` (configured) and `radio_table_stats[]` (live) |
+| `PUT /rest/device/{_id}` | body `{ "radio_table": [ ... ] }` → `{ "meta": { "rc": "ok" }, "data": [device] }` |
+
+`radio_table[]` entries: `name` (`wifi0`/`wifi1`/`wifi2`), `radio` (`ng` = 2.4 GHz,
+`na` = 5 GHz, `6e` = 6 GHz), `channel` (`"auto"` or a number), `ht` (width in MHz
+as a string: `"20"`…`"320"`), `tx_power_mode` (`auto`/`low`/`medium`/`high`/`custom`;
+absent means auto), `tx_power`, plus capability fields (`has_ht160`, `max_txpower`, …).
+`radio_table_stats[]` has the radio's current `channel`, `bw` (width), `tx_power`
+and `num_sta` (clients), matched to the config entry by `name`.
+
+The PUT replaces the whole table, so send every radio back (modified entry
+included), not just the one you changed. Applying a change restarts that radio,
+briefly disconnecting its clients. Widths: 2.4 GHz 20/40, 5 GHz 20–160, 6 GHz 20–320
+(the AP model may support less).

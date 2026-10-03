@@ -18,6 +18,8 @@ U7 Lite              U7 Lite    192.168.1.252  ONLINE  8.6.11
 - `unifi clients [--wired|--wireless]` — every client on the network
 - `unifi client <name|ip|mac>` — one client plus its DHCP reservation
 - `unifi client fixed-ip <client> <ip|off> [--name label]` — set or clear a DHCP reservation (asks for confirmation; uses the legacy Network API, see docs/api-notes.md)
+- `unifi radios [<device>]` — every AP radio: band, channel and width (configured vs. what it's using now), tx power mode, client count (`--json` gives one normalized object per radio)
+- `unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]` — change a radio (shows a before→after diff and asks for confirmation; briefly drops that radio's clients; uses the legacy Network API)
 - `unifi device restart <name|id>` — restart a device (asks for confirmation)
 - `unifi device power-cycle <name|id> <port>` — power-cycle a PoE port (asks for confirmation)
 - `--json` on any read command for the raw API response, `--site` to pick a site, `--yes` to skip confirmations in scripts
@@ -71,6 +73,8 @@ unifi clients --wireless             # who's on WiFi right now
 unifi clients --json                 # full client objects (incl. uplink AP id)
 unifi client 192.168.0.134           # who is that, and does it have a fixed IP?
 unifi client fixed-ip 192.168.0.134 192.168.0.50 --name macnode   # DHCP reservation
+unifi radios                         # channel/width/tx power of every AP radio
+unifi radio set "U7 Lite" 5 --width 80   # widen 5 GHz to 80 MHz (prompts y/N)
 unifi device restart living-room     # prompts y/N before acting
 unifi --help
 ```
@@ -94,12 +98,12 @@ Or, from a clone of this repo:
 bun run install-skill   # copies skills/unifi-cli/ → ~/.claude/skills/unifi-cli
 ```
 
-Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
+Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
 
 ## Development
 
 ```sh
-bun test          # 40 tests, no network needed (injectable fetch)
+bun test          # 57 tests, no network needed (injectable fetch)
 ```
 
 `src/api.ts` is the only file that talks HTTP; commands are pure functions over an injected client, which is what makes the suite fast and offline.

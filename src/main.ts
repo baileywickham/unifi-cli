@@ -14,6 +14,7 @@ import {
   type Confirm,
 } from "./commands/devices";
 import { clientsCommand, clientDetailCommand, fixedIpCommand } from "./commands/clients";
+import { radiosCommand, radioSetCommand } from "./commands/radios";
 
 export const USAGE = `usage: unifi <command> [options]
 
@@ -27,12 +28,18 @@ commands:
   clients [--wired|--wireless]          list connected clients
   client <name|ip|mac>                  one client + its DHCP reservation
   client fixed-ip <client> <ip|off>     set/clear a DHCP reservation (--name N to label it)
+  radios [<device>]                     Wi-Fi radios: band, channel, width, tx power
+  radio set <device> <2.4|5|6>          change a radio (--width N, --channel N|auto,
+                                        --tx-power low|medium|high|auto)
 
 options:
   --json          raw JSON output
   --site <name>   site to use (default: config defaultSite or first site)
   --yes           skip confirmation on write actions
   --name <label>  with fixed-ip: name the client in the controller
+  --width <MHz>   with radio set: 20/40 (2.4), up to 160 (5), up to 320 (6)
+  --channel <n>   with radio set: channel number or auto
+  --tx-power <m>  with radio set: low, medium, high or auto
   -h, --help      show this help`;
 
 async function resolveSite(client: ApiClient, requested: string | undefined): Promise<Site> {
@@ -61,6 +68,9 @@ export async function run(
       site: { type: "string" },
       yes: { type: "boolean", default: false },
       name: { type: "string" },
+      width: { type: "string" },
+      channel: { type: "string" },
+      "tx-power": { type: "string" },
       wired: { type: "boolean", default: false },
       wireless: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -93,6 +103,25 @@ export async function run(
       }
       if (!sub) throw new Error(`usage: unifi client <name|ip|mac>`);
       return clientDetailCommand(client, site.id, siteRef, sub, values.json);
+    }
+    case "radios": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      return radiosCommand(client, site.internalReference ?? "default", rest[0], values.json);
+    }
+    case "radio": {
+      const [sub, device, band] = rest;
+      if (sub !== "set" || !device || !band) {
+        throw new Error(`usage: unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]`);
+      }
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      return radioSetCommand(
+        client,
+        site.internalReference ?? "default",
+        device,
+        band,
+        { width: values.width, channel: values.channel, txPower: values["tx-power"] },
+        { yes: values.yes, confirm },
+      );
     }
     case "device": {
       const siteId = await resolveSiteId(client, values.site ?? defaultSite);

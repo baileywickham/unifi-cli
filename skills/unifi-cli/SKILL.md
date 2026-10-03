@@ -31,6 +31,8 @@ Prefer `--json` when you need to parse the output.
     unifi clients [--wired|--wireless]   # connected clients
     unifi client <name|ip|mac>           # one client + its DHCP reservation
     unifi client fixed-ip <client> <ip|off> [--name label]   # DHCP reservation (write action)
+    unifi radios [<device>]              # AP radios: band, channel/width (configured vs now), tx power
+    unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]   # (write action)
     unifi sites                          # sites (usually just "default")
     unifi info                           # network application version
 
@@ -39,12 +41,15 @@ Typical questions this answers: "what APs do I have?" → `unifi devices`;
 "what's on my network?" → `unifi clients`;
 "give the Mac a fixed IP" → `unifi client fixed-ip <ip-or-mac> <new-ip> --name <label>`
 (applies at the client's next DHCP renewal; on a Mac `sudo ipconfig set en0 DHCP`
-renews it).
+renews it);
+"what channel/width is the 5 GHz on?" → `unifi radios`;
+"set 5 GHz to 80 MHz" → `unifi radio set <ap> 5 --width 80` (valid widths: 2.4 GHz 20/40,
+5 GHz 20/40/80/160, 6 GHz up to 320; applying briefly drops that radio's clients).
 
 ## Write actions — ask the user first
 
-`unifi device restart <name>`, `unifi device power-cycle <name> <port>` and
-`unifi client fixed-ip …` change the network. NEVER run them unless the user
+`unifi device restart <name>`, `unifi device power-cycle <name> <port>`,
+`unifi client fixed-ip …` and `unifi radio set …` change the network. NEVER run them unless the user
 explicitly asked for that action in this conversation. These commands prompt interactively, so when
 running them from Claude pass `--yes` — but only after the user has explicitly
 confirmed the action in the conversation.

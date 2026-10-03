@@ -1,4 +1,16 @@
-import type { AppInfo, Client, Device, DeviceDetail, DeviceStats, LegacyNetwork, LegacyUser, Page, Site } from "./types";
+import type {
+  AppInfo,
+  Client,
+  Device,
+  DeviceDetail,
+  DeviceStats,
+  LegacyDevice,
+  LegacyNetwork,
+  LegacyRadio,
+  LegacyUser,
+  Page,
+  Site,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -117,5 +129,13 @@ export class ApiClient {
   }
   updateUser(siteRef: string, userId: string, patch: Partial<LegacyUser>): Promise<LegacyUser[]> {
     return this.legacy("PUT", siteRef, `/rest/user/${userId}`, patch);
+  }
+  /** Devices with full config (legacy API) — includes `radio_table` for APs. */
+  listLegacyDevices(siteRef: string): Promise<LegacyDevice[]> {
+    return this.legacy("GET", siteRef, "/stat/device");
+  }
+  /** Replace a device's radio settings. `radioTable` must be the full table, not just the changed entry. */
+  updateRadioTable(siteRef: string, deviceId: string, radioTable: LegacyRadio[]): Promise<LegacyDevice[]> {
+    return this.legacy("PUT", siteRef, `/rest/device/${deviceId}`, { radio_table: radioTable });
   }
 }

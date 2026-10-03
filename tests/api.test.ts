@@ -71,3 +71,24 @@ test("powerCyclePort POSTs POWER_CYCLE to the port path", async () => {
   );
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ action: "POWER_CYCLE" });
 });
+
+test("listLegacyDevices GETs stat/device on the legacy API", async () => {
+  const { api, calls } = client(() => Response.json({ meta: { rc: "ok" }, data: [{ _id: "ap1" }] }));
+  expect(await api.listLegacyDevices("default")).toEqual([{ _id: "ap1" } as any]);
+  expect(calls[0].url).toBe("https://gw/proxy/network/api/s/default/stat/device");
+});
+
+test("updateRadioTable PUTs the radio_table to rest/device", async () => {
+  const { api, calls } = client(() => Response.json({ meta: { rc: "ok" }, data: [{ _id: "ap1" }] }));
+  const rt = [{ name: "wifi1", radio: "na", channel: "auto", ht: "80" }];
+  await api.updateRadioTable("default", "ap1", rt);
+  expect(calls[0].url).toBe("https://gw/proxy/network/api/s/default/rest/device/ap1");
+  expect(calls[0].init.method).toBe("PUT");
+  expect((calls[0].init.headers as Record<string, string>)["X-API-KEY"]).toBe("KEY");
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ radio_table: rt });
+});
+
+test("legacy rc=error becomes ApiError", async () => {
+  const { api } = client(() => Response.json({ meta: { rc: "error", msg: "api.err.Invalid" }, data: [] }));
+  await expect(api.updateRadioTable("default", "ap1", [])).rejects.toThrow("api.err.Invalid");
+});
