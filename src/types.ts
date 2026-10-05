@@ -65,6 +65,11 @@ export interface LegacyNetwork {
   name: string;
   purpose: string; // "corporate" | "wan" | ...
   ip_subnet?: string; // e.g. "192.168.0.1/24"
+  wan_networkgroup?: string; // "WAN" | "WAN2" on WAN networks
+  wan_smartq_enabled?: boolean; // Smart Queues (SQM) on this WAN
+  wan_smartq_down_rate?: number; // kbps
+  wan_smartq_up_rate?: number; // kbps
+  [key: string]: unknown;
 }
 
 /** Legacy Network API: one entry of a device's `radio_table` (configured settings). */
@@ -86,6 +91,21 @@ export interface LegacyRadioStats {
   bw?: number;
   tx_power?: number;
   num_sta?: number;
+  cu_total?: number; // channel utilization %, all transmitters the radio hears
+  tx_retries_pct?: number; // % of frames this radio had to retransmit
+}
+
+/** Legacy Network API: /stat/rogueap — a neighboring network one of our radios hears. */
+export interface LegacyNeighbor {
+  bssid: string;
+  essid?: string; // "" for hidden networks
+  band: string; // "ng" | "na" | "6e"
+  channel: number;
+  bw?: number;
+  signal?: number; // dBm
+  radio_name?: string;
+  ap_mac?: string;
+  last_seen?: number;
 }
 
 /** Legacy Network API: /proxy/network/api/s/<site>/stat/device */

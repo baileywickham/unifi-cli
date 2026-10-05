@@ -5,6 +5,7 @@ import type {
   DeviceDetail,
   DeviceStats,
   LegacyDevice,
+  LegacyNeighbor,
   LegacyNetwork,
   LegacyRadio,
   LegacyUser,
@@ -129,6 +130,14 @@ export class ApiClient {
   }
   updateUser(siteRef: string, userId: string, patch: Partial<LegacyUser>): Promise<LegacyUser[]> {
     return this.legacy("PUT", siteRef, `/rest/user/${userId}`, patch);
+  }
+  /** Replace a network's config. Send the whole object (as the web UI does), not a partial one. */
+  updateNetwork(siteRef: string, network: LegacyNetwork): Promise<LegacyNetwork[]> {
+    return this.legacy("PUT", siteRef, `/rest/networkconf/${network._id}`, network);
+  }
+  /** Neighboring networks our APs have heard in the last `hours`. */
+  listNeighbors(siteRef: string, hours = 1): Promise<LegacyNeighbor[]> {
+    return this.legacy("GET", siteRef, `/stat/rogueap?within=${hours}`);
   }
   /** Devices with full config (legacy API) — includes `radio_table` for APs. */
   listLegacyDevices(siteRef: string): Promise<LegacyDevice[]> {

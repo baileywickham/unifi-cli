@@ -33,6 +33,9 @@ Prefer `--json` when you need to parse the output.
     unifi client fixed-ip <client> <ip|off> [--name label]   # DHCP reservation (write action)
     unifi radios [<device>]              # AP radios: band, channel/width (configured vs now), tx power
     unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]   # (write action)
+    unifi neighbors [--band 5] [--hours 24]  # neighboring networks per channel, as the APs hear them
+    unifi smartq                         # Smart Queues (SQM) on/off and rates per WAN
+    unifi smartq set <down Mbps> <up Mbps> | off [--wan name]   # (write action)
     unifi sites                          # sites (usually just "default")
     unifi info                           # network application version
 
@@ -44,12 +47,17 @@ Typical questions this answers: "what APs do I have?" → `unifi devices`;
 renews it);
 "what channel/width is the 5 GHz on?" → `unifi radios`;
 "set 5 GHz to 80 MHz" → `unifi radio set <ap> 5 --width 80` (valid widths: 2.4 GHz 20/40,
-5 GHz 20/40/80/160, 6 GHz up to 320; applying briefly drops that radio's clients).
+5 GHz 20/40/80/160, 6 GHz up to 320; applying briefly drops that radio's clients);
+"which channel is least crowded?" → `unifi neighbors --band 5 --hours 24` plus the BUSY/RETRIES
+columns of `unifi radios` (an AP hears only its own channel, so pair it with a client-side scan,
+e.g. `system_profiler SPAirPortDataType` on a Mac);
+"calls lag when someone uploads" (bufferbloat) → `unifi smartq set <down> <up>` at ~90% of a
+measured speed test (`networkQuality -s` on a Mac).
 
 ## Write actions — ask the user first
 
 `unifi device restart <name>`, `unifi device power-cycle <name> <port>`,
-`unifi client fixed-ip …` and `unifi radio set …` change the network. NEVER run them unless the user
+`unifi client fixed-ip …`, `unifi radio set …` and `unifi smartq set|off` change the network. NEVER run them unless the user
 explicitly asked for that action in this conversation. These commands prompt interactively, so when
 running them from Claude pass `--yes` — but only after the user has explicitly
 confirmed the action in the conversation.

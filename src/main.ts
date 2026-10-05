@@ -15,6 +15,8 @@ import {
 } from "./commands/devices";
 import { clientsCommand, clientDetailCommand, fixedIpCommand } from "./commands/clients";
 import { radiosCommand, radioSetCommand } from "./commands/radios";
+import { neighborsCommand } from "./commands/neighbors";
+import { smartqCommand, smartqSetCommand } from "./commands/smartq";
 
 export const USAGE = `usage: unifi <command> [options]
 
@@ -31,6 +33,10 @@ commands:
   radios [<device>]                     Wi-Fi radios: band, channel, width, tx power
   radio set <device> <2.4|5|6>          change a radio (--width N, --channel N|auto,
                                         --tx-power low|medium|high|auto)
+  neighbors [--band 2.4|5|6]            neighboring Wi-Fi networks per channel, as the APs hear them
+  smartq                                Smart Queues (SQM) state per WAN
+  smartq set <down Mbps> <up Mbps>      turn Smart Queues on at these rates (--wan N for a non-primary WAN)
+  smartq off                            turn Smart Queues off
 
 options:
   --json          raw JSON output
@@ -40,6 +46,9 @@ options:
   --width <MHz>   with radio set: 20/40 (2.4), up to 160 (5), up to 320 (6)
   --channel <n>   with radio set: channel number or auto
   --tx-power <m>  with radio set: low, medium, high or auto
+  --band <b>      with neighbors: only this band
+  --hours <n>     with neighbors: how far back to look (default 1)
+  --wan <name>    with smartq: WAN name or group (default: primary WAN)
   -h, --help      show this help`;
 
 async function resolveSite(client: ApiClient, requested: string | undefined): Promise<Site> {
@@ -71,6 +80,9 @@ export async function run(
       width: { type: "string" },
       channel: { type: "string" },
       "tx-power": { type: "string" },
+      band: { type: "string" },
+      hours: { type: "string" },
+      wan: { type: "string" },
       wired: { type: "boolean", default: false },
       wireless: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -122,6 +134,23 @@ export async function run(
         { width: values.width, channel: values.channel, txPower: values["tx-power"] },
         { yes: values.yes, confirm },
       );
+    }
+    case "neighbors": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      const hours = values.hours === undefined ? undefined : Number(values.hours);
+      if (hours !== undefined && !(hours > 0)) throw new Error(`invalid --hours "${values.hours}"`);
+      return neighborsCommand(client, site.internalReference ?? "default", { band: values.band, hours, json: values.json });
+    }
+    case "smartq": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      const siteRef = site.internalReference ?? "default";
+      const [sub, down, up] = rest;
+      if (!sub) return smartqCommand(client, siteRef, values.json);
+      if (sub === "off") return smartqSetCommand(client, siteRef, null, { wan: values.wan, yes: values.yes, confirm });
+      if (sub === "set" && down && up) {
+        return smartqSetCommand(client, siteRef, { down, up }, { wan: values.wan, yes: values.yes, confirm });
+      }
+      throw new Error(`usage: unifi smartq [set <down Mbps> <up Mbps> | off] [--wan name]`);
     }
     case "device": {
       const siteId = await resolveSiteId(client, values.site ?? defaultSite);

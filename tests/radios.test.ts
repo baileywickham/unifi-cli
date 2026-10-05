@@ -67,7 +67,7 @@ test("radiosCommand shows configured vs current per AP radio, skipping non-APs",
   const out = await radiosCommand(client, "default", undefined, false);
   expect(out).not.toContain("Cloud Gateway");
   const lines = out.split("\n");
-  expect(lines[0]).toMatch(/^DEVICE\s+BAND\s+RADIO\s+CHANNEL\s+CH NOW\s+WIDTH\s+WIDTH NOW\s+TX POWER\s+CLIENTS$/);
+  expect(lines[0]).toMatch(/^DEVICE\s+BAND\s+RADIO\s+CHANNEL\s+CH NOW\s+WIDTH\s+WIDTH NOW\s+TX POWER\s+CLIENTS\s+BUSY\s+RETRIES$/);
   expect(lines[2]).toMatch(/U7 Lite\s+5 GHz\s+wifi1\s+auto\s+149\s+40 MHz\s+40 MHz\s+auto\s+6/);
   const j = JSON.parse(await radiosCommand(client, "default", "U7 Lite", true));
   expect(j[1]).toMatchObject({ band: "5 GHz", configured: { channel: "auto", widthMHz: 40 }, current: { channel: 149 } });

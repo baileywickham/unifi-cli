@@ -18,8 +18,10 @@ U7 Lite              U7 Lite    192.168.1.252  ONLINE  8.6.11
 - `unifi clients [--wired|--wireless]` — every client on the network
 - `unifi client <name|ip|mac>` — one client plus its DHCP reservation
 - `unifi client fixed-ip <client> <ip|off> [--name label]` — set or clear a DHCP reservation (asks for confirmation; uses the legacy Network API, see docs/api-notes.md)
-- `unifi radios [<device>]` — every AP radio: band, channel and width (configured vs. what it's using now), tx power mode, client count (`--json` gives one normalized object per radio)
+- `unifi radios [<device>]` — every AP radio: band, channel and width (configured vs. what it's using now), tx power mode, client count, channel busy % and retransmit % (`--json` gives one normalized object per radio)
 - `unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]` — change a radio (shows a before→after diff and asks for confirmation; briefly drops that radio's clients; uses the legacy Network API)
+- `unifi neighbors [--band 2.4|5|6] [--hours N]` — neighboring Wi-Fi networks per channel as the APs hear them (count, strongest signal, how many are loud); an AP only hears its own channel, so it's a picture of where you are and where you've been
+- `unifi smartq` / `unifi smartq set <down Mbps> <up Mbps>` / `unifi smartq off` — Smart Queues (SQM, the bufferbloat fix) per WAN (`--wan` for a non-primary WAN; asks for confirmation)
 - `unifi device restart <name|id>` — restart a device (asks for confirmation)
 - `unifi device power-cycle <name|id> <port>` — power-cycle a PoE port (asks for confirmation)
 - `--json` on any read command for the raw API response, `--site` to pick a site, `--yes` to skip confirmations in scripts
@@ -75,6 +77,8 @@ unifi client 192.168.0.134           # who is that, and does it have a fixed IP?
 unifi client fixed-ip 192.168.0.134 192.168.0.50 --name macnode   # DHCP reservation
 unifi radios                         # channel/width/tx power of every AP radio
 unifi radio set "U7 Lite" 5 --width 80   # widen 5 GHz to 80 MHz (prompts y/N)
+unifi neighbors --band 5 --hours 24 # how crowded is each 5 GHz channel?
+unifi smartq set 210 36             # Smart Queues at ~90% of measured down/up (prompts y/N)
 unifi device restart living-room     # prompts y/N before acting
 unifi --help
 ```
@@ -98,7 +102,7 @@ Or, from a clone of this repo:
 bun run install-skill   # copies skills/unifi-cli/ → ~/.claude/skills/unifi-cli
 ```
 
-Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
+Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set`/`smartq set|off` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
 
 ## Development
 

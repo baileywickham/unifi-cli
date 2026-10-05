@@ -43,7 +43,14 @@ export interface RadioRow {
   radio: string;
   band: string;
   configured: { channel: string; widthMHz: number | null; txPowerMode: string; txPower: string | null };
-  current: { channel: number | null; widthMHz: number | null; txPower: number | null; clients: number | null };
+  current: {
+    channel: number | null;
+    widthMHz: number | null;
+    txPower: number | null;
+    clients: number | null;
+    utilizationPct: number | null;
+    retriesPct: number | null;
+  };
 }
 
 const num = (v: unknown): number | null => (v == null || v === "" || Number.isNaN(Number(v)) ? null : Number(v));
@@ -69,6 +76,8 @@ export function radioRows(devices: LegacyDevice[]): RadioRow[] {
           widthMHz: num(stats?.bw),
           txPower: num(stats?.tx_power),
           clients: num(stats?.num_sta),
+          utilizationPct: num(stats?.cu_total),
+          retriesPct: num(stats?.tx_retries_pct),
         },
       };
     }),
@@ -87,7 +96,7 @@ export async function radiosCommand(
   if (asJson) return json(rows);
   const s = (v: number | null) => (v == null ? "-" : String(v));
   return table(
-    ["DEVICE", "BAND", "RADIO", "CHANNEL", "CH NOW", "WIDTH", "WIDTH NOW", "TX POWER", "CLIENTS"],
+    ["DEVICE", "BAND", "RADIO", "CHANNEL", "CH NOW", "WIDTH", "WIDTH NOW", "TX POWER", "CLIENTS", "BUSY", "RETRIES"],
     rows.map((r) => [
       r.device,
       r.band,
@@ -98,6 +107,8 @@ export async function radiosCommand(
       r.current.widthMHz == null ? "-" : `${r.current.widthMHz} MHz`,
       r.configured.txPowerMode === "custom" ? `custom (${r.configured.txPower ?? "?"} dBm)` : r.configured.txPowerMode,
       s(r.current.clients),
+      r.current.utilizationPct == null ? "-" : `${r.current.utilizationPct}%`,
+      r.current.retriesPct == null ? "-" : `${r.current.retriesPct}%`,
     ]),
   );
 }

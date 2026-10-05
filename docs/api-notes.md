@@ -82,3 +82,27 @@ The PUT replaces the whole table, so send every radio back (modified entry
 included), not just the one you changed. Applying a change restarts that radio,
 briefly disconnecting its clients. Widths: 2.4 GHz 20/40, 5 GHz 20–160, 6 GHz 20–320
 (the AP model may support less).
+
+### Neighboring networks and radio health
+
+| Endpoint | Notes |
+|---|---|
+| `GET /stat/rogueap?within=<hours>` | every neighboring BSS our APs heard: `bssid`, `essid` (`""` = hidden), `band` (`ng`/`na`/`6e`), `channel`, `bw`, `signal` (dBm), `radio_name`, `ap_mac`, `last_seen` |
+
+An AP only reports networks on the channel it is operating on (no background
+scan), so `within=24` after a channel change shows both the old and new channel,
+and other channels are simply absent. `GET /stat/spectrumscan[/<mac>]` 404s on
+Network 10.x / U7 Lite. `radio_table_stats[]` also carries `cu_total` (channel
+utilization %, everything the radio hears), `cu_self_rx`/`cu_self_tx`, and
+`tx_retries_pct`. The latter is the best single interference signal: ~13–16% on a
+crowded channel 149, 0–2% on an empty DFS channel.
+
+### Smart Queues (SQM)
+
+Lives on the WAN entry of `/rest/networkconf` (`purpose: "wan"`,
+`wan_networkgroup: "WAN"`/`"WAN2"`): `wan_smartq_enabled` (bool),
+`wan_smartq_down_rate` and `wan_smartq_up_rate` (kbps; absent until first set).
+`PUT /rest/networkconf/{_id}` with the whole network object (smartq fields changed)
+applies it; verified on Network 10.6 / UCG Ultra. `wan_provider_capabilities`
+(`download_/upload_kilobits_per_second`) is the speed the UI shows for the ISP and
+is not used by SQM.
