@@ -10,8 +10,9 @@ CLI for the UniFi Network Integrations API on a local UniFi gateway
 
 ## Prerequisites
 
-- `unifi` is on PATH. `bun link` installs it to `~/.bun/bin`, which may not be
-  on PATH in every shell — try `~/.bun/bin/unifi` before assuming it's missing.
+- `unifi` is on PATH. `bun link` installs it to `~/.bun/bin`, which is not on
+  PATH when Bun came from Homebrew — try `~/.bun/bin/unifi` before assuming
+  it's missing.
   If it isn't installed, install it (requires [Bun](https://bun.sh)):
 
       git clone https://github.com/baileywickham/unifi-cli
@@ -28,14 +29,18 @@ Prefer `--json` when you need to parse the output.
 
     unifi devices --json                 # all UniFi hardware: model, IP, state
     unifi device <name|id>               # one device: detail + uptime/cpu/memory
-    unifi clients [--wired|--wireless]   # connected clients
-    unifi client <name|ip|mac>           # one client + its DHCP reservation
+    unifi clients [--wired|--wireless] [--all]   # connected clients (--all: plus known offline ones)
+    unifi client <name|ip|mac>           # one client + its DHCP reservation; falls back to
+                                         # known offline clients with first/last seen
     unifi client fixed-ip <client> <ip|off> [--name label]   # DHCP reservation (write action)
     unifi radios [<device>]              # AP radios: band, channel/width (configured vs now), tx power
     unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]   # (write action)
     unifi neighbors [--band 5] [--hours 24]  # neighboring networks per channel, as the APs hear them
     unifi smartq                         # Smart Queues (SQM) on/off and rates per WAN
     unifi smartq set <down Mbps> <up Mbps> | off [--wan name]   # (write action)
+    unifi portforwards                   # port-forward rules: enabled, proto, port, target, source
+    unifi portforward enable|disable <name|id>   # (write action)
+    unifi upnp                           # UPnP / NAT-PMP on or off
     unifi sites                          # sites (usually just "default")
     unifi info                           # network application version
 
@@ -52,12 +57,16 @@ renews it);
 columns of `unifi radios` (an AP hears only its own channel, so pair it with a client-side scan,
 e.g. `system_profiler SPAirPortDataType` on a Mac);
 "calls lag when someone uploads" (bufferbloat) → `unifi smartq set <down> <up>` at ~90% of a
-measured speed test (`networkQuality -s` on a Mac).
+measured speed test (`networkQuality -s` on a Mac);
+"is that device still around / when was it last here?" → `unifi client <name|ip|mac>`
+(or `unifi clients --all`);
+"what's exposed to the internet?" → `unifi portforwards` and `unifi upnp`.
 
 ## Write actions — ask the user first
 
 `unifi device restart <name>`, `unifi device power-cycle <name> <port>`,
-`unifi client fixed-ip …`, `unifi radio set …` and `unifi smartq set|off` change the network. NEVER run them unless the user
+`unifi client fixed-ip …`, `unifi radio set …`, `unifi smartq set|off` and
+`unifi portforward enable|disable …` change the network (enabling a port forward exposes a LAN host to the internet). NEVER run them unless the user
 explicitly asked for that action in this conversation. These commands prompt interactively, so when
 running them from Claude pass `--yes` — but only after the user has explicitly
 confirmed the action in the conversation.

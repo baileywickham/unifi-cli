@@ -57,6 +57,36 @@ export interface LegacyUser {
   use_fixedip?: boolean;
   fixed_ip?: string;
   network_id?: string;
+  oui?: string;
+  last_ip?: string;
+  first_seen?: number; // unix seconds
+  last_seen?: number; // unix seconds
+  is_wired?: boolean;
+}
+
+/** Legacy Network API: /proxy/network/api/s/<site>/rest/portforward */
+export interface LegacyPortForward {
+  _id: string;
+  name: string;
+  enabled: boolean;
+  proto?: string; // "tcp" | "udp" | "tcp_udp"
+  dst_port?: string; // WAN port(s), e.g. "443" or "8000-8010"
+  fwd?: string; // LAN IP
+  fwd_port?: string;
+  src_limiting_enabled?: boolean;
+  src?: string; // allowed source IP/CIDR when src_limiting_enabled
+  src_firewall_group_id?: string; // allowed source group when src_limiting_enabled
+  pfwd_interface?: string; // "wan" | "wan2" | "both" | "all"
+  [key: string]: unknown;
+}
+
+/** Legacy Network API: /get/setting/usg (gateway settings, incl. UPnP). */
+export interface LegacyUsgSetting {
+  key: "usg";
+  upnp_enabled?: boolean;
+  upnp_nat_pmp_enabled?: boolean;
+  upnp_secure_mode?: boolean;
+  [key: string]: unknown;
 }
 
 /** Legacy Network API: /proxy/network/api/s/<site>/rest/networkconf */

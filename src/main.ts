@@ -17,6 +17,8 @@ import { clientsCommand, clientDetailCommand, fixedIpCommand } from "./commands/
 import { radiosCommand, radioSetCommand } from "./commands/radios";
 import { neighborsCommand } from "./commands/neighbors";
 import { smartqCommand, smartqSetCommand } from "./commands/smartq";
+import { portForwardsCommand, portForwardToggleCommand } from "./commands/portforwards";
+import { upnpCommand } from "./commands/upnp";
 
 export const USAGE = `usage: unifi <command> [options]
 
@@ -27,8 +29,9 @@ commands:
   device <name|id>                      device detail + stats
   device restart <name|id>              restart a device
   device power-cycle <name|id> <port>   power-cycle a PoE port
-  clients [--wired|--wireless]          list connected clients
-  client <name|ip|mac>                  one client + its DHCP reservation
+  clients [--wired|--wireless] [--all]  list connected clients (--all: also known offline ones)
+  client <name|ip|mac>                  one client + its DHCP reservation (falls back to
+                                        known offline clients, with first/last seen)
   client fixed-ip <client> <ip|off>     set/clear a DHCP reservation (--name N to label it)
   radios [<device>]                     Wi-Fi radios: band, channel, width, tx power
   radio set <device> <2.4|5|6>          change a radio (--width N, --channel N|auto,
@@ -37,11 +40,15 @@ commands:
   smartq                                Smart Queues (SQM) state per WAN
   smartq set <down Mbps> <up Mbps>      turn Smart Queues on at these rates (--wan N for a non-primary WAN)
   smartq off                            turn Smart Queues off
+  portforwards                          list port-forward rules
+  portforward enable|disable <name|id>  turn a port-forward rule on or off
+  upnp                                  UPnP / NAT-PMP state on the gateway
 
 options:
   --json          raw JSON output
   --site <name>   site to use (default: config defaultSite or first site)
   --yes           skip confirmation on write actions
+  --all           with clients: include known clients that are offline
   --name <label>  with fixed-ip: name the client in the controller
   --width <MHz>   with radio set: 20/40 (2.4), up to 160 (5), up to 320 (6)
   --channel <n>   with radio set: channel number or auto
@@ -85,6 +92,7 @@ export async function run(
       wan: { type: "string" },
       wired: { type: "boolean", default: false },
       wireless: { type: "boolean", default: false },
+      all: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: true,
@@ -99,12 +107,16 @@ export async function run(
       return sitesCommand(client, values.json);
     case "devices":
       return devicesCommand(client, await resolveSiteId(client, values.site ?? defaultSite), values.json);
-    case "clients":
-      return clientsCommand(client, await resolveSiteId(client, values.site ?? defaultSite), {
+    case "clients": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      return clientsCommand(client, site.id, {
         wired: values.wired,
         wireless: values.wireless,
         json: values.json,
+        all: values.all,
+        siteRef: site.internalReference ?? "default",
       });
+    }
     case "client": {
       const site = await resolveSite(client, values.site ?? defaultSite);
       const siteRef = site.internalReference ?? "default";
@@ -151,6 +163,25 @@ export async function run(
         return smartqSetCommand(client, siteRef, { down, up }, { wan: values.wan, yes: values.yes, confirm });
       }
       throw new Error(`usage: unifi smartq [set <down Mbps> <up Mbps> | off] [--wan name]`);
+    }
+    case "portforwards": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      return portForwardsCommand(client, site.internalReference ?? "default", values.json);
+    }
+    case "portforward": {
+      const [sub, ref] = rest;
+      if ((sub !== "enable" && sub !== "disable") || !ref) {
+        throw new Error(`usage: unifi portforward enable|disable <name|id>`);
+      }
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      return portForwardToggleCommand(client, site.internalReference ?? "default", ref, sub === "enable", {
+        yes: values.yes,
+        confirm,
+      });
+    }
+    case "upnp": {
+      const site = await resolveSite(client, values.site ?? defaultSite);
+      return upnpCommand(client, site.internalReference ?? "default", values.json);
     }
     case "device": {
       const siteId = await resolveSiteId(client, values.site ?? defaultSite);

@@ -15,13 +15,16 @@ U7 Lite              U7 Lite    192.168.1.252  ONLINE  8.6.11
 - `unifi sites` — list sites
 - `unifi devices` — all UniFi hardware (gateway, switches, APs) with model/IP/state/firmware
 - `unifi device <name|id>` — device detail plus live stats (uptime, CPU, memory)
-- `unifi clients [--wired|--wireless]` — every client on the network
-- `unifi client <name|ip|mac>` — one client plus its DHCP reservation
+- `unifi clients [--wired|--wireless] [--all]` — every client on the network; `--all` adds known clients that are offline, with when they were last seen
+- `unifi client <name|ip|mac>` — one client plus its DHCP reservation; if nothing connected matches, it searches every client the gateway has ever seen and shows each match as offline with first/last seen
 - `unifi client fixed-ip <client> <ip|off> [--name label]` — set or clear a DHCP reservation (asks for confirmation; uses the legacy Network API, see docs/api-notes.md)
 - `unifi radios [<device>]` — every AP radio: band, channel and width (configured vs. what it's using now), tx power mode, client count, channel busy % and retransmit % (`--json` gives one normalized object per radio)
 - `unifi radio set <device> <2.4|5|6> [--width N] [--channel N|auto] [--tx-power low|medium|high|auto]` — change a radio (shows a before→after diff and asks for confirmation; briefly drops that radio's clients; uses the legacy Network API)
 - `unifi neighbors [--band 2.4|5|6] [--hours N]` — neighboring Wi-Fi networks per channel as the APs hear them (count, strongest signal, how many are loud); an AP only hears its own channel, so it's a picture of where you are and where you've been
 - `unifi smartq` / `unifi smartq set <down Mbps> <up Mbps>` / `unifi smartq off` — Smart Queues (SQM, the bufferbloat fix) per WAN (`--wan` for a non-primary WAN; asks for confirmation)
+- `unifi portforwards` — port-forward rules: name, enabled, protocol, WAN port, LAN target, allowed source, id
+- `unifi portforward enable|disable <name|id>` — turn a rule on or off (asks for confirmation, then re-reads the rule to report its actual state; uses the legacy Network API). There is deliberately no delete.
+- `unifi upnp` — UPnP / NAT-PMP state on the gateway (read-only)
 - `unifi device restart <name|id>` — restart a device (asks for confirmation)
 - `unifi device power-cycle <name|id> <port>` — power-cycle a PoE port (asks for confirmation)
 - `--json` on any read command for the raw API response, `--site` to pick a site, `--yes` to skip confirmations in scripts
@@ -35,8 +38,16 @@ Requires [Bun](https://bun.sh).
 ```sh
 git clone https://github.com/baileywickham/unifi-cli && cd unifi-cli
 bun install
-bun link          # puts `unifi` on your PATH (via ~/.bun/bin)
+bun link          # links `unifi` into Bun's global bin dir, ~/.bun/bin
 ```
+
+`bun link` only creates `~/.bun/bin/unifi`. Bun's install script adds `~/.bun/bin` to your PATH, but a Homebrew-installed Bun does not, so `which unifi` comes up empty. In that case add it to your shell config:
+
+```sh
+export PATH="$HOME/.bun/bin:$PATH"   # e.g. in ~/.zshrc
+```
+
+or run it as `~/.bun/bin/unifi`.
 
 ## Getting an API key (read this — it's the one tricky part)
 
@@ -74,11 +85,16 @@ unifi device living-room             # one device: detail + uptime/cpu/memory
 unifi clients --wireless             # who's on WiFi right now
 unifi clients --json                 # full client objects (incl. uplink AP id)
 unifi client 192.168.0.134           # who is that, and does it have a fixed IP?
+unifi client avery-laptop            # not connected? shows when it was last seen
+unifi clients --all                  # connected clients, then known offline ones
 unifi client fixed-ip 192.168.0.134 192.168.0.50 --name macnode   # DHCP reservation
 unifi radios                         # channel/width/tx power of every AP radio
 unifi radio set "U7 Lite" 5 --width 80   # widen 5 GHz to 80 MHz (prompts y/N)
 unifi neighbors --band 5 --hours 24 # how crowded is each 5 GHz channel?
 unifi smartq set 210 36             # Smart Queues at ~90% of measured down/up (prompts y/N)
+unifi portforwards                   # what's exposed to the internet?
+unifi portforward disable ubnt       # turn a rule off (prompts y/N)
+unifi upnp                           # is UPnP on?
 unifi device restart living-room     # prompts y/N before acting
 unifi --help
 ```
@@ -102,12 +118,12 @@ Or, from a clone of this repo:
 bun run install-skill   # copies skills/unifi-cli/ → ~/.claude/skills/unifi-cli
 ```
 
-Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set`/`smartq set|off` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
+Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set`/`smartq set|off`/`portforward enable|disable` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
 
 ## Development
 
 ```sh
-bun test          # 57 tests, no network needed (injectable fetch)
+bun test          # 77 tests, no network needed (injectable fetch)
 ```
 
 `src/api.ts` is the only file that talks HTTP; commands are pure functions over an injected client, which is what makes the suite fast and offline.

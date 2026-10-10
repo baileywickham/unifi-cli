@@ -52,7 +52,7 @@ Used for DHCP reservations, which the Integrations API cannot set:
 
 | Endpoint | Notes |
 |---|---|
-| `GET /rest/user` | every client the controller has ever seen: `_id`, `mac`, `name`, `hostname`, `use_fixedip`, `fixed_ip`, `network_id` |
+| `GET /rest/user` | every client the controller has ever seen: `_id`, `mac`, `name`, `hostname`, `oui` (vendor, often empty), `last_ip`, `first_seen`/`last_seen` (unix seconds), `is_wired`, `use_fixedip`, `fixed_ip`, `network_id` |
 | `GET /rest/networkconf` | networks: `_id`, `name`, `purpose` (`corporate` = LAN, `wan`), `ip_subnet` (`192.168.0.1/24`) |
 | `PUT /rest/user/{_id}` | partial update; `{ "use_fixedip": true, "fixed_ip": "…", "network_id": "…", "name": "…" }` reserves, `{ "use_fixedip": false }` clears |
 
@@ -106,3 +106,11 @@ Lives on the WAN entry of `/rest/networkconf` (`purpose: "wan"`,
 applies it; verified on Network 10.6 / UCG Ultra. `wan_provider_capabilities`
 (`download_/upload_kilobits_per_second`) is the speed the UI shows for the ISP and
 is not used by SQM.
+
+### Port forwards and UPnP
+
+| Endpoint | Notes |
+|---|---|
+| `GET /rest/portforward` | rules: `_id`, `name`, `enabled`, `proto` (`tcp`/`udp`/`tcp_udp`), `dst_port` (WAN port, string), `fwd` (LAN IP), `fwd_port`, `src_limiting_enabled` (+ `src` or `src_firewall_group_id`), `pfwd_interface`, `destination_ips[]`, `log` |
+| `PUT /rest/portforward/{_id}` | send the whole rule object with the field changed (e.g. `enabled`); `unifi portforward enable|disable` does this, then re-reads the list to confirm |
+| `GET /get/setting/usg` | one object, `key: "usg"`: `upnp_enabled`, `upnp_nat_pmp_enabled`, `upnp_secure_mode` among many gateway settings |

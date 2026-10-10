@@ -7,7 +7,9 @@ import type {
   LegacyDevice,
   LegacyNeighbor,
   LegacyNetwork,
+  LegacyPortForward,
   LegacyRadio,
+  LegacyUsgSetting,
   LegacyUser,
   Page,
   Site,
@@ -146,5 +148,18 @@ export class ApiClient {
   /** Replace a device's radio settings. `radioTable` must be the full table, not just the changed entry. */
   updateRadioTable(siteRef: string, deviceId: string, radioTable: LegacyRadio[]): Promise<LegacyDevice[]> {
     return this.legacy("PUT", siteRef, `/rest/device/${deviceId}`, { radio_table: radioTable });
+  }
+  listPortForwards(siteRef: string): Promise<LegacyPortForward[]> {
+    return this.legacy("GET", siteRef, "/rest/portforward");
+  }
+  /** Replace a port-forward rule. Send the whole object (as the web UI does), not a partial one. */
+  updatePortForward(siteRef: string, rule: LegacyPortForward): Promise<LegacyPortForward[]> {
+    return this.legacy("PUT", siteRef, `/rest/portforward/${rule._id}`, rule);
+  }
+  /** Gateway settings (`upnp_enabled` etc.); throws if the gateway returns none. */
+  async getUsgSetting(siteRef: string): Promise<LegacyUsgSetting> {
+    const [setting] = await this.legacy<LegacyUsgSetting>("GET", siteRef, "/get/setting/usg");
+    if (!setting) throw new Error("gateway returned no usg settings");
+    return setting;
   }
 }

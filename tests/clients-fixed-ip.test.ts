@@ -1,7 +1,7 @@
 import { test, expect } from "bun:test";
 import type { ApiClient } from "../src/api";
 import type { Client, LegacyNetwork } from "../src/types";
-import { resolveClient, networkForIp, fixedIpCommand, clientDetailCommand } from "../src/commands/clients";
+import { resolveClient, networkForIp, fixedIpCommand, clientDetailCommand, clientsCommand } from "../src/commands/clients";
 
 const stub = (methods: Record<string, unknown>) => methods as unknown as ApiClient;
 
@@ -57,4 +57,49 @@ test("clientDetailCommand shows the reservation", async () => {
   expect(out).toContain("fixed ip  192.168.0.50");
   const j = JSON.parse(await clientDetailCommand(client, "s", "default", "c1", true));
   expect(j.reservation.fixed_ip).toBe("192.168.0.50");
+});
+
+// Known-client records as GET /rest/user returns them (trimmed).
+const KNOWN = [
+  { _id: "u1", mac: "02:9b:56:70:f0:6f", hostname: "Mac", name: "macnode", last_ip: "192.168.0.50", first_seen: 1774629026, last_seen: 1790986688, is_wired: false, use_fixedip: true, fixed_ip: "192.168.0.50" },
+  { _id: "u2", mac: "aa:bb:cc:00:00:01", hostname: "printer", oui: "Brother", last_ip: "192.168.0.77", first_seen: 1774629026, last_seen: 1791000000, is_wired: true },
+  { _id: "u3", mac: "aa:bb:cc:00:00:02", hostname: "old-tv", last_ip: "192.168.0.77", first_seen: 1774000000, last_seen: 1780000000, is_wired: false },
+];
+
+test("clientDetailCommand falls back to known offline clients", async () => {
+  const client = stub({ listClients: async () => CLIENTS, listUsers: async () => KNOWN });
+  const out = await clientDetailCommand(client, "s", "default", "printer", false);
+  expect(out).toMatch(/^status\s+offline$/m);
+  expect(out).toMatch(/^vendor\s+Brother$/m);
+  expect(out).toMatch(/^type\s+WIRED$/m);
+  expect(out).toMatch(/^first seen\s+2026-03-27T16:30:26Z$/m);
+  expect(out).toMatch(/^last seen\s+2026-10-03T04:00:00Z$/m);
+  // an IP reused over time lists every known client that had it, newest first
+  const both = await clientDetailCommand(client, "s", "default", "192.168.0.77", false);
+  expect(both.indexOf("printer")).toBeLessThan(both.indexOf("old-tv"));
+  // a match that is connected under another IP says so
+  const mac = await clientDetailCommand(client, "s", "default", "macnode", false);
+  expect(mac).toMatch(/^status\s+connected now as 192\.168\.0\.134$/m);
+  const j = JSON.parse(await clientDetailCommand(client, "s", "default", "aa:bb:cc:00:00:01", true));
+  expect(j).toEqual([{ ...KNOWN[1], connected: false }]);
+  await expect(clientDetailCommand(client, "s", "default", "nope", false)).rejects.toThrow(/connected or known/);
+});
+
+test("clientsCommand --all appends offline known clients", async () => {
+  const seen: string[] = [];
+  const client = stub({ listClients: async () => CLIENTS, listUsers: async (ref: string) => (seen.push(ref), KNOWN) });
+  const out = await clientsCommand(client, "s", { wired: false, wireless: false, json: false, all: true, siteRef: "default" });
+  expect(seen).toEqual(["default"]);
+  expect(out).toMatch(/printer\s+192\.168\.0\.77\s+aa:bb:cc:00:00:01\s+WIRED\s+offline, last seen 2026-10-03T04:00:00Z/);
+  expect(out).not.toMatch(/macnode/); // connected (as "Mac f0:6f"), so not repeated as offline
+  const wireless = await clientsCommand(client, "s", { wired: false, wireless: true, json: false, all: true });
+  expect(wireless).toContain("old-tv");
+  expect(wireless).not.toContain("printer");
+  const j = JSON.parse(await clientsCommand(client, "s", { wired: false, wireless: false, json: true, all: true }));
+  expect(j.connected).toHaveLength(2);
+  expect(j.offline.map((u: { _id: string }) => u._id)).toEqual(["u2", "u3"]);
+  // without --all the legacy API is not touched
+  seen.length = 0;
+  await clientsCommand(client, "s", { wired: false, wireless: false, json: false });
+  expect(seen).toEqual([]);
 });

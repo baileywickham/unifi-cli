@@ -1,30 +1,56 @@
 import type { ApiClient } from "../api";
-import type { Client, LegacyNetwork } from "../types";
-import { json, table } from "../format";
+import type { Client, LegacyNetwork, LegacyUser } from "../types";
+import { formatUnixTime, json, table } from "../format";
 import type { Confirm } from "./devices";
+
+const userType = (u: LegacyUser) => (u.is_wired === undefined ? "" : u.is_wired ? "WIRED" : "WIRELESS");
+
+/** Known clients (legacy /rest/user) that are not connected right now, most recently seen first. */
+export function offlineUsers(users: LegacyUser[], connected: Client[]): LegacyUser[] {
+  const online = new Set(connected.map((c) => c.macAddress?.toLowerCase()).filter(Boolean));
+  return users
+    .filter((u) => !online.has(u.mac.toLowerCase()))
+    .sort((a, b) => (b.last_seen ?? 0) - (a.last_seen ?? 0));
+}
 
 export async function clientsCommand(
   client: ApiClient,
   siteId: string,
-  opts: { wired: boolean; wireless: boolean; json: boolean },
+  opts: { wired: boolean; wireless: boolean; json: boolean; all?: boolean; siteRef?: string },
 ): Promise<string> {
   if (opts.wired && opts.wireless) throw new Error("--wired and --wireless are mutually exclusive");
-  let clients = await client.listClients(siteId);
-  if (opts.wired) clients = clients.filter((c) => c.type === "WIRED");
-  if (opts.wireless) clients = clients.filter((c) => c.type === "WIRELESS");
-  if (opts.json) return json(clients);
+  const keep = (type: string) => (!opts.wired || type === "WIRED") && (!opts.wireless || type === "WIRELESS");
+  const connected = await client.listClients(siteId);
+  const clients = connected.filter((c) => keep(c.type));
+  const offline = opts.all
+    ? offlineUsers(await client.listUsers(opts.siteRef ?? "default"), connected).filter((u) => keep(userType(u)))
+    : [];
+  if (opts.json) return json(opts.all ? { connected: clients, offline } : clients);
   return table(
     ["NAME", "IP", "MAC", "TYPE", "CONNECTED"],
-    clients.map((c) => [c.name ?? "", c.ipAddress ?? "", c.macAddress ?? "", c.type, c.connectedAt ?? ""]),
+    [
+      ...clients.map((c) => [c.name ?? "", c.ipAddress ?? "", c.macAddress ?? "", c.type, c.connectedAt ?? ""]),
+      ...offline.map((u) => [
+        u.name ?? u.hostname ?? "",
+        u.last_ip ?? "",
+        u.mac,
+        userType(u),
+        `offline, last seen ${formatUnixTime(u.last_seen) || "?"}`,
+      ]),
+    ],
   );
 }
 
 /** Match a connected client by id, name (case-insensitive), IP or MAC. */
-export function resolveClient(clients: Client[], ref: string): Client {
+export function matchClients(clients: Client[], ref: string): Client[] {
   const r = ref.toLowerCase();
-  const matches = clients.filter(
+  return clients.filter(
     (c) => c.id === ref || c.name?.toLowerCase() === r || c.ipAddress === ref || c.macAddress?.toLowerCase() === r,
   );
+}
+
+export function resolveClient(clients: Client[], ref: string): Client {
+  const matches = matchClients(clients, ref);
   if (matches.length === 1) return matches[0];
   if (matches.length === 0) throw new Error(`no connected client matching "${ref}" (try an IP or MAC from \`unifi clients\`)`);
   throw new Error(`ambiguous client "${ref}": ${matches.map((m) => `${m.name} ${m.ipAddress}`).join(", ")}`);
@@ -48,9 +74,56 @@ export function networkForIp(networks: LegacyNetwork[], ip: string): LegacyNetwo
   throw new Error(`no network contains ${ip} (networks: ${networks.filter((n) => n.ip_subnet).map((n) => `${n.name} ${n.ip_subnet}`).join(", ")})`);
 }
 
+/** Match a known (legacy /rest/user) client by id, name or hostname (case-insensitive), last IP or MAC. */
+export function matchKnownClients(users: LegacyUser[], ref: string): LegacyUser[] {
+  const r = ref.toLowerCase();
+  return users.filter(
+    (u) =>
+      u._id === ref ||
+      u.name?.toLowerCase() === r ||
+      u.hostname?.toLowerCase() === r ||
+      u.last_ip === ref ||
+      u.mac.toLowerCase() === r,
+  );
+}
+
+/**
+ * Nothing connected matches `ref`: show every known client that does, with
+ * first/last seen. A match may still be connected under another IP or name.
+ */
+function knownClientDetail(users: LegacyUser[], connected: Client[], ref: string, asJson: boolean): string {
+  const known = matchKnownClients(users, ref).sort((a, b) => (b.last_seen ?? 0) - (a.last_seen ?? 0));
+  if (known.length === 0) {
+    throw new Error(`no client matching "${ref}", connected or known (try an IP or MAC from \`unifi clients --all\`)`);
+  }
+  const now = (u: LegacyUser) => connected.find((c) => c.macAddress?.toLowerCase() === u.mac.toLowerCase());
+  if (asJson) return json(known.map((u) => ({ ...u, connected: now(u) !== undefined })));
+  return known
+    .map((u) => {
+      const c = now(u);
+      const rows: [string, string][] = [
+        ["id", u._id],
+        ["name", u.name ?? ""],
+        ["hostname", u.hostname ?? ""],
+        ["mac", u.mac],
+        ["vendor", u.oui ?? ""],
+        ["type", userType(u)],
+        ["status", c ? `connected now as ${c.ipAddress ?? "no ip"}` : "offline"],
+        ["last ip", u.last_ip ?? ""],
+        ["first seen", formatUnixTime(u.first_seen)],
+        ["last seen", formatUnixTime(u.last_seen)],
+        ["fixed ip", u.use_fixedip && u.fixed_ip ? u.fixed_ip : "none"],
+      ];
+      return rows.map(([k, v]) => `${k.padEnd(11)}${v}`).join("\n");
+    })
+    .join("\n\n");
+}
+
 export async function clientDetailCommand(client: ApiClient, siteId: string, siteRef: string, ref: string, asJson: boolean): Promise<string> {
-  const c = resolveClient(await client.listClients(siteId), ref);
-  const user = (await client.listUsers(siteRef)).find((u) => u.mac.toLowerCase() === c.macAddress?.toLowerCase());
+  const [connected, users] = await Promise.all([client.listClients(siteId), client.listUsers(siteRef)]);
+  if (matchClients(connected, ref).length === 0) return knownClientDetail(users, connected, ref, asJson);
+  const c = resolveClient(connected, ref);
+  const user = users.find((u) => u.mac.toLowerCase() === c.macAddress?.toLowerCase());
   if (asJson) return json({ ...c, reservation: user ?? null });
   const rows: [string, string][] = [
     ["id", c.id],

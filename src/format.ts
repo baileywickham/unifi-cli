@@ -16,3 +16,9 @@ export function formatUptime(sec: number): string {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
+
+/** Unix seconds → "2026-10-02T17:29:00Z" (same shape as the Integrations API's timestamps). */
+export function formatUnixTime(sec: number | undefined): string {
+  if (sec === undefined || !Number.isFinite(sec)) return "";
+  return new Date(sec * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
