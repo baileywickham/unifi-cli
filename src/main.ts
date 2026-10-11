@@ -19,6 +19,7 @@ import { neighborsCommand } from "./commands/neighbors";
 import { smartqCommand, smartqSetCommand } from "./commands/smartq";
 import { portForwardsCommand, portForwardToggleCommand } from "./commands/portforwards";
 import { upnpCommand } from "./commands/upnp";
+import { networksCommand, networkCreateCommand, wifisCommand, wifiCreateCommand } from "./commands/networks";
 
 export const USAGE = `usage: unifi <command> [options]
 
@@ -43,6 +44,11 @@ commands:
   portforwards                          list port-forward rules
   portforward enable|disable <name|id>  turn a port-forward rule on or off
   upnp                                  UPnP / NAT-PMP state on the gateway
+  networks                              networks: VLAN, subnet, isolation
+  network create <name>                 create a VLAN network (--vlan N --subnet 192.168.20.1/24 [--isolate])
+  wifis                                 WiFi SSIDs and the network each one is on
+  wifi create <ssid>                    create a WPA2 SSID (--network <name> [--band 2.4|5|6|both]
+                                        [--passphrase P]; default 2.4 GHz, generated passphrase)
 
 options:
   --json          raw JSON output
@@ -53,9 +59,14 @@ options:
   --width <MHz>   with radio set: 20/40 (2.4), up to 160 (5), up to 320 (6)
   --channel <n>   with radio set: channel number or auto
   --tx-power <m>  with radio set: low, medium, high or auto
-  --band <b>      with neighbors: only this band
+  --band <b>      with neighbors: only this band; with wifi create: 2.4, 5, 6 or both
   --hours <n>     with neighbors: how far back to look (default 1)
   --wan <name>    with smartq: WAN name or group (default: primary WAN)
+  --vlan <n>      with network create: VLAN ID
+  --subnet <cidr> with network create: gateway address and prefix
+  --isolate       with network create: block traffic to and from other networks
+  --network <n>   with wifi create: network name or id
+  --passphrase P  with wifi create: WPA2 passphrase (default: generated and printed)
   -h, --help      show this help`;
 
 async function resolveSite(client: ApiClient, requested: string | undefined): Promise<Site> {
@@ -93,6 +104,11 @@ export async function run(
       wired: { type: "boolean", default: false },
       wireless: { type: "boolean", default: false },
       all: { type: "boolean", default: false },
+      vlan: { type: "string" },
+      subnet: { type: "string" },
+      isolate: { type: "boolean", default: false },
+      network: { type: "string" },
+      passphrase: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: true,
@@ -182,6 +198,32 @@ export async function run(
     case "upnp": {
       const site = await resolveSite(client, values.site ?? defaultSite);
       return upnpCommand(client, site.internalReference ?? "default", values.json);
+    }
+    case "networks":
+      return networksCommand(client, await resolveSiteId(client, values.site ?? defaultSite), values.json);
+    case "network": {
+      const [sub, name] = rest;
+      if (sub !== "create" || !name) throw new Error(`usage: unifi network create <name> --vlan N --subnet 192.168.20.1/24 [--isolate]`);
+      return networkCreateCommand(client, await resolveSiteId(client, values.site ?? defaultSite), name, {
+        vlan: values.vlan,
+        subnet: values.subnet,
+        isolate: values.isolate,
+        yes: values.yes,
+        confirm,
+      });
+    }
+    case "wifis":
+      return wifisCommand(client, await resolveSiteId(client, values.site ?? defaultSite), values.json);
+    case "wifi": {
+      const [sub, ssid] = rest;
+      if (sub !== "create" || !ssid) throw new Error(`usage: unifi wifi create <ssid> --network <name> [--band 2.4|5|6|both] [--passphrase P]`);
+      return wifiCreateCommand(client, await resolveSiteId(client, values.site ?? defaultSite), ssid, {
+        network: values.network,
+        band: values.band,
+        passphrase: values.passphrase,
+        yes: values.yes,
+        confirm,
+      });
     }
     case "device": {
       const siteId = await resolveSiteId(client, values.site ?? defaultSite);

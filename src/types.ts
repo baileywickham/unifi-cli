@@ -148,3 +148,44 @@ export interface LegacyDevice {
   radio_table?: LegacyRadio[];
   radio_table_stats?: LegacyRadioStats[];
 }
+
+/** Integration API network (GET /v1/sites/{id}/networks/{id}); the list endpoint returns fewer fields. */
+export interface Network {
+  id: string;
+  name: string;
+  management: string;
+  enabled: boolean;
+  vlanId: number;
+  default?: boolean;
+  isolationEnabled?: boolean;
+  internetAccessEnabled?: boolean;
+  mdnsForwardingEnabled?: boolean;
+  cellularBackupEnabled?: boolean;
+  ipv4Configuration?: {
+    autoScaleEnabled?: boolean;
+    hostIpAddress: string;
+    prefixLength: number;
+    dhcpConfiguration?: {
+      mode: string;
+      ipAddressRange?: { start: string; stop: string };
+      leaseTimeSeconds?: number;
+      domainName?: string;
+      pingConflictDetectionEnabled?: boolean;
+    };
+  };
+  metadata?: { origin?: string; configurable?: boolean };
+}
+
+/** Integration API WiFi broadcast (an SSID). */
+export interface WifiBroadcast {
+  id: string;
+  type: string;
+  name: string;
+  enabled: boolean;
+  network: { type: "NATIVE" | "SPECIFIC"; networkId?: string };
+  securityConfiguration: { type: string; passphrase?: string; fastRoamingEnabled?: boolean };
+  broadcastingFrequenciesGHz: number[];
+  clientIsolationEnabled?: boolean;
+  hideName?: boolean;
+  metadata?: { origin?: string };
+}

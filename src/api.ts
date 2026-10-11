@@ -11,8 +11,10 @@ import type {
   LegacyRadio,
   LegacyUsgSetting,
   LegacyUser,
+  Network,
   Page,
   Site,
+  WifiBroadcast,
 } from "./types";
 
 export class ApiError extends Error {
@@ -121,6 +123,23 @@ export class ApiClient {
     return this.request("POST", `/v1/sites/${siteId}/devices/${deviceId}/interfaces/ports/${portIdx}/actions`, {
       action: "POWER_CYCLE",
     });
+  }
+
+  /** Networks (Integration API). The list has summaries only; use getNetwork for subnet/isolation. */
+  listNetworkSummaries(siteId: string): Promise<Network[]> {
+    return this.allPages(`/v1/sites/${siteId}/networks`);
+  }
+  getNetwork(siteId: string, networkId: string): Promise<Network> {
+    return this.request("GET", `/v1/sites/${siteId}/networks/${networkId}`);
+  }
+  createNetwork(siteId: string, network: Omit<Network, "id">): Promise<Network> {
+    return this.request("POST", `/v1/sites/${siteId}/networks`, network);
+  }
+  listWifiBroadcasts(siteId: string): Promise<WifiBroadcast[]> {
+    return this.allPages(`/v1/sites/${siteId}/wifi/broadcasts`);
+  }
+  createWifiBroadcast(siteId: string, wifi: Record<string, unknown>): Promise<WifiBroadcast> {
+    return this.request("POST", `/v1/sites/${siteId}/wifi/broadcasts`, wifi);
   }
 
   /** Known clients (legacy API) — includes offline ones and DHCP reservations. */

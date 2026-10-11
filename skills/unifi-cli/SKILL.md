@@ -41,6 +41,10 @@ Prefer `--json` when you need to parse the output.
     unifi portforwards                   # port-forward rules: enabled, proto, port, target, source
     unifi portforward enable|disable <name|id>   # (write action)
     unifi upnp                           # UPnP / NAT-PMP on or off
+    unifi networks                       # networks: VLAN, subnet, isolated
+    unifi network create <name> --vlan N --subnet 192.168.20.1/24 [--isolate]   # (write action)
+    unifi wifis                          # SSIDs and the network each is on
+    unifi wifi create <ssid> --network <name> [--band 2.4|5|6|both] [--passphrase P]   # (write action)
     unifi sites                          # sites (usually just "default")
     unifi info                           # network application version
 
@@ -66,7 +70,7 @@ measured speed test (`networkQuality -s` on a Mac);
 
 `unifi device restart <name>`, `unifi device power-cycle <name> <port>`,
 `unifi client fixed-ip …`, `unifi radio set …`, `unifi smartq set|off` and
-`unifi portforward enable|disable …` change the network (enabling a port forward exposes a LAN host to the internet). NEVER run them unless the user
+`unifi portforward enable|disable …`, `unifi network create …` and `unifi wifi create …` change the network (enabling a port forward exposes a LAN host to the internet). NEVER run them unless the user
 explicitly asked for that action in this conversation. These commands prompt interactively, so when
 running them from Claude pass `--yes` — but only after the user has explicitly
 confirmed the action in the conversation.
