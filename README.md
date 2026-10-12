@@ -29,6 +29,7 @@ U7 Lite              U7 Lite    192.168.1.252  ONLINE  8.6.11
 - `unifi network create <name> --vlan N --subnet 192.168.20.1/24 [--isolate]` — create a gateway-managed VLAN with DHCP from .6 to the last address; refuses a duplicate name, VLAN or overlapping subnet, asks for confirmation, then re-reads it to check isolation stuck (Integration API)
 - `unifi wifis` — SSIDs: enabled, network, security, bands
 - `unifi wifi create <ssid> --network <name> [--band 2.4|5|6|both] [--passphrase P]` — create a WPA2 SSID on a network (default 2.4 GHz, which most IoT devices need; without `--passphrase` it generates one and prints it once). There is deliberately no delete for networks or SSIDs.
+- `unifi wifi passphrase <ssid> [--passphrase P]` — change an SSID's passphrase (asks for confirmation; every device on it has to rejoin)
 - `unifi device restart <name|id>` — restart a device (asks for confirmation)
 - `unifi device power-cycle <name|id> <port>` — power-cycle a PoE port (asks for confirmation)
 - `--json` on any read command for the raw API response, `--site` to pick a site, `--yes` to skip confirmations in scripts
@@ -122,7 +123,7 @@ Or, from a clone of this repo:
 bun run install-skill   # copies skills/unifi-cli/ → ~/.claude/skills/unifi-cli
 ```
 
-Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set`/`smartq set|off`/`portforward enable|disable`/`network create`/`wifi create` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
+Either way, any Claude Code session on your machine knows how to answer "what APs do I have?" or "is my iPhone on WiFi?" by running the CLI. The skill hard-codes a safety rule: it never runs `restart`/`power-cycle`/`fixed-ip`/`radio set`/`smartq set|off`/`portforward enable|disable`/`network create`/`wifi create|passphrase` (and never passes `--yes`) unless you explicitly asked for that action in the conversation.
 
 ## Development
 

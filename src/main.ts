@@ -19,7 +19,7 @@ import { neighborsCommand } from "./commands/neighbors";
 import { smartqCommand, smartqSetCommand } from "./commands/smartq";
 import { portForwardsCommand, portForwardToggleCommand } from "./commands/portforwards";
 import { upnpCommand } from "./commands/upnp";
-import { networksCommand, networkCreateCommand, wifisCommand, wifiCreateCommand } from "./commands/networks";
+import { networksCommand, networkCreateCommand, wifisCommand, wifiCreateCommand, wifiPassphraseCommand } from "./commands/networks";
 
 export const USAGE = `usage: unifi <command> [options]
 
@@ -49,6 +49,7 @@ commands:
   wifis                                 WiFi SSIDs and the network each one is on
   wifi create <ssid>                    create a WPA2 SSID (--network <name> [--band 2.4|5|6|both]
                                         [--passphrase P]; default 2.4 GHz, generated passphrase)
+  wifi passphrase <ssid>                change an SSID's passphrase ([--passphrase P], else generated)
 
 options:
   --json          raw JSON output
@@ -66,7 +67,7 @@ options:
   --subnet <cidr> with network create: gateway address and prefix
   --isolate       with network create: block traffic to and from other networks
   --network <n>   with wifi create: network name or id
-  --passphrase P  with wifi create: WPA2 passphrase (default: generated and printed)
+  --passphrase P  with wifi create/passphrase: WPA2 passphrase (default: generated and printed)
   -h, --help      show this help`;
 
 async function resolveSite(client: ApiClient, requested: string | undefined): Promise<Site> {
@@ -216,7 +217,14 @@ export async function run(
       return wifisCommand(client, await resolveSiteId(client, values.site ?? defaultSite), values.json);
     case "wifi": {
       const [sub, ssid] = rest;
-      if (sub !== "create" || !ssid) throw new Error(`usage: unifi wifi create <ssid> --network <name> [--band 2.4|5|6|both] [--passphrase P]`);
+      if (sub === "passphrase" && ssid) {
+        return wifiPassphraseCommand(client, await resolveSiteId(client, values.site ?? defaultSite), ssid, {
+          passphrase: values.passphrase,
+          yes: values.yes,
+          confirm,
+        });
+      }
+      if (sub !== "create" || !ssid) throw new Error(`usage: unifi wifi create <ssid> --network <name> [--band 2.4|5|6|both] [--passphrase P] | wifi passphrase <ssid> [--passphrase P]`);
       return wifiCreateCommand(client, await resolveSiteId(client, values.site ?? defaultSite), ssid, {
         network: values.network,
         band: values.band,

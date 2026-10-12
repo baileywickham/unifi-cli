@@ -214,3 +214,31 @@ export async function wifiCreateCommand(
   if (generated) lines.push(`passphrase: ${passphrase}`);
   return lines.join("\n");
 }
+
+/**
+ * Change an SSID's WPA2 passphrase. The PUT carries the SSID as the gateway returned it
+ * (minus id/metadata) with only the passphrase set. Generates one if none is given.
+ */
+export async function wifiPassphraseCommand(
+  client: ApiClient,
+  siteId: string,
+  ssid: string,
+  opts: { passphrase: string | undefined; yes: boolean; confirm: Confirm },
+): Promise<string> {
+  const generated = opts.passphrase === undefined;
+  const passphrase = opts.passphrase ?? generatePassphrase();
+  if (passphrase.length < 8 || passphrase.length > 63) throw new Error(`passphrase must be 8-63 characters`);
+  const matches = (await client.listWifiBroadcasts(siteId)).filter((w) => w.id === ssid || w.name === ssid);
+  if (matches.length !== 1) throw new Error(matches.length ? `ambiguous SSID "${ssid}"` : `no SSID named "${ssid}"`);
+  const { id, metadata: _m, ...wifi } = await client.getWifiBroadcast(siteId, matches[0].id);
+  if (!wifi.securityConfiguration?.type?.endsWith("_PERSONAL")) {
+    throw new Error(`"${wifi.name}" uses ${wifi.securityConfiguration?.type ?? "no"} security, not a passphrase`);
+  }
+  if (!opts.yes && !(await opts.confirm(`Change the passphrase of "${wifi.name}"? Every device on it will have to rejoin.`))) {
+    return "aborted";
+  }
+  await client.updateWifiBroadcast(siteId, id, { ...wifi, securityConfiguration: { ...wifi.securityConfiguration, passphrase } });
+  const lines = [`changed the passphrase of "${wifi.name}"`];
+  if (generated) lines.push(`passphrase: ${passphrase}`);
+  return lines.join("\n");
+}

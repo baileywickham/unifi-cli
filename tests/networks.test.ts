@@ -9,6 +9,7 @@ import {
   parseGatewayCidr,
   wifiCreateCommand,
   wifisCommand,
+  wifiPassphraseCommand,
 } from "../src/commands/networks";
 
 const stub = (methods: Record<string, unknown>) => methods as unknown as ApiClient;
@@ -150,4 +151,24 @@ test("generatePassphrase avoids look-alike characters", () => {
   const p = generatePassphrase();
   expect(p).toHaveLength(20);
   expect(p).not.toMatch(/[0O1lI]/);
+});
+
+test("wifiPassphraseCommand PUTs the SSID back with only the passphrase changed", async () => {
+  const full = { ...WIFI, metadata: { origin: "USER_DEFINED" }, securityConfiguration: { type: "WPA2_PERSONAL", fastRoamingEnabled: false }, hideName: false };
+  const puts: [string, Record<string, any>][] = [];
+  const client = stub({
+    listWifiBroadcasts: async () => [WIFI],
+    getWifiBroadcast: async () => ({ ...full }),
+    updateWifiBroadcast: async (_s: string, id: string, body: Record<string, any>) => (puts.push([id, body]), body),
+  });
+  const out = await wifiPassphraseCommand(client, "s", "wifi one", { passphrase: "purple taco river", yes: true, confirm: yes });
+  expect(out).toBe(`changed the passphrase of "wifi one"`);
+  const [id, body] = puts[0];
+  expect(id).toBe("w1");
+  expect(body.id).toBeUndefined();
+  expect(body.metadata).toBeUndefined();
+  expect(body.securityConfiguration).toEqual({ type: "WPA2_PERSONAL", fastRoamingEnabled: false, passphrase: "purple taco river" });
+  expect(body.hideName).toBe(false);
+  await expect(wifiPassphraseCommand(client, "s", "nope", { passphrase: "longenough", yes: true, confirm: yes })).rejects.toThrow(/no SSID/);
+  expect(await wifiPassphraseCommand(client, "s", "w1", { passphrase: "longenough", yes: false, confirm: async () => false })).toBe("aborted");
 });

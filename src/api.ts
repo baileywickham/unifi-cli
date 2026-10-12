@@ -138,6 +138,13 @@ export class ApiClient {
   listWifiBroadcasts(siteId: string): Promise<WifiBroadcast[]> {
     return this.allPages(`/v1/sites/${siteId}/wifi/broadcasts`);
   }
+  getWifiBroadcast(siteId: string, wifiId: string): Promise<WifiBroadcast> {
+    return this.request("GET", `/v1/sites/${siteId}/wifi/broadcasts/${wifiId}`);
+  }
+  /** Replace an SSID's config. Send the whole object; the passphrase is required because GET never returns it. */
+  updateWifiBroadcast(siteId: string, wifiId: string, wifi: Record<string, unknown>): Promise<WifiBroadcast> {
+    return this.request("PUT", `/v1/sites/${siteId}/wifi/broadcasts/${wifiId}`, wifi);
+  }
   createWifiBroadcast(siteId: string, wifi: Record<string, unknown>): Promise<WifiBroadcast> {
     return this.request("POST", `/v1/sites/${siteId}/wifi/broadcasts`, wifi);
   }
